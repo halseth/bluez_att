@@ -10,8 +10,8 @@ static long server_port = 1337;
 struct peripheral
 {
 	int peripheral_handle;
-	struct curl_slist* http_header;
-	char* server_url;
+	char* http_header;
+	char* server_uri;
 	char* http_body;
 	char* control_point;
 	int http_status_code;
@@ -49,17 +49,17 @@ size_t writefunc(void *ptr, size_t size, size_t nmemb, struct string *s)
 
 void peripheral_did_write_to_header(struct peripheral *peripheral, char* val)
 {
-
+	peripheral->http_header;
 }
 
 void peripheral_did_write_to_uri(struct peripheral *peripheral, char* val)
 {
-
+	peripheral->server_uri = val;
 }
 
 void peripheral_did_write_to_body(struct peripheral *peripheral, char* val)
 {
-
+	peripheral->http_body = val;
 }
 
 void peripheral_did_write_to_controlpoint(struct peripheral *peripheral, char* val)
