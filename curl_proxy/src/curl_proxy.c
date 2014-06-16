@@ -83,8 +83,9 @@ void put_to_server(struct peripheral* peri) {
 
 request_t server_req(request_t req)
 {
-	struct string resp_string;
-	init_string(&resp_string);
+	struct string resp_body_string, resp_header_string;
+	init_string(&resp_body_string);
+	init_string(&resp_header_string);
 
 	// TODO make header parser
 	struct curl_slist *header = NULL;
@@ -92,26 +93,24 @@ request_t server_req(request_t req)
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
 
 	curl_easy_setopt(curl, CURLOPT_URL, req.uri);
+
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resp_string);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resp_body_string);
+
+	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, writefunc);
+	curl_easy_setopt(curl, CURLOPT_HEADERDATA, &resp_header_string);
+
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, req.http_body);
 
-	switch (req.controlpoint)
-	{
-	case GET:
-		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
-		break;
-	case PUT:
-		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-		break;
-	default:
-		break;
-	}
+	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, req.controlpoint);
 
-	printf("Now performing the %s request\n", req.controlpoint == GET ? "GET" : "PUT");
+	printf("Now performing the %s request\n", req.controlpoint);
 	res = curl_easy_perform(curl);
-	long status_code;
-	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code);
+
+	req.http_body = resp_body_string.ptr;
+	req.http_header = resp_header_string.ptr;
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &req.http_status_code);
+
 
 	return req;
 }

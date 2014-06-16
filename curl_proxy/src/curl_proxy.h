@@ -4,8 +4,6 @@
 #include <curl/curl.h>
 #include <stdlib.h>
 
-typedef enum {GET, PUT} controlpoint_t;
-
 typedef struct
 {
 	/*
@@ -28,15 +26,15 @@ typedef struct
 	char* http_body;
 
 	/*
-	 * Control point. Used to determine the request type.
-	 * E.g: GET, PUT.
+	 * Controlpoint. Used to determine the request type.
+	 * E.g: "GET", "PUT".
 	 */
-	controlpoint_t controlpoint;
+	char* controlpoint;
 
 	/*
 	 * HTTP status. The status returned by the server.
 	 */
-	int http_status_code;
+	long http_status_code;
 } request_t;
 
 /*
