@@ -45,4 +45,4 @@ void init_request(request_t *req);
 /*
  * Do a server request (PUT or GET). Response are found in return struct's data fields.
  */
-request_t server_req(request_t req);
+//request_t server_req(request_t req);
