@@ -1,4 +1,5 @@
 #include <jansson.h>
+#include <string.h>
 
 /*
  * Creates json-string fro Xively server.
