@@ -140,37 +140,47 @@ void init_request(request_t *req)
 	req->http_status_code = 0;
 }
 
+void print_request(request_t *req)
+{
+	printf("URI:\n%s\n", req->uri);
+	printf("HTTP header:\n%s\n", req->http_header);
+	printf("HTTP body:\n%s\n", req->http_body);
+	printf("Control point:\n%s\n", req->controlpoint);
+}
+
 int main(void) {
 
 	curl = curl_easy_init();
 	if (curl) {
-		/*struct peripheral peri;
-		peri.server_uri = xively_feed_uri;
-		peri.http_header = xively_feed_header;
-		peri.control_point = "GET";
-		get_from_server(&peri);
-		curl_easy_reset(curl);
-
-		char* msg_json = create_json_string("1211", "1337");
-		printf("Sending body:\n%s \n", msg_json);
-		peri.http_body = msg_json;
-		put_to_server(&peri);
-*/
-
-		request_t request;
-		init_request(&request);
-		request.uri = xively_feed_uri;
-		request.http_header = xively_feed_header;
-		request.controlpoint = "GET";
+		request_t get_req;
+		init_request(&get_req);
+		get_req.uri = xively_feed_uri;
+		get_req.http_header = xively_feed_header;
+		get_req.controlpoint = "GET";
 
 		printf("Now issuing a GET request\n");
-		request = server_req(request);
+		print_request(&get_req);
+		get_req = server_req(get_req);
 		printf("Returned:\n");
-		printf("Status code:\n%ld\n", request.http_status_code);
-		printf("Header:\n%s\n", request.http_header);
-		printf("Body:\n%s", request.http_body);
+		printf("Status code:\n%ld\n", get_req.http_status_code);
+		printf("Header:\n%s\n", get_req.http_header);
+		printf("Body:\n%s\n", beautify_json_string(get_req.http_body));
 
+		request_t put_req;
+		init_request(&put_req);
 
+		put_req.uri = xively_feed_uri;
+		put_req.http_header = xively_feed_header;
+		put_req.controlpoint = "PUT";
+		put_req.http_body = create_json_string("1211", "211");
+
+		printf("Now issuing PUT request:\n");
+		print_request(&put_req);
+		put_req = server_req(put_req);
+		printf("Returned:\n");
+		printf("Status code:\n%ld\n", put_req.http_status_code);
+		printf("Header:\n%s\n", put_req.http_header);
+		printf("Body:\n%s\n", put_req.http_body);
 
 	}
 
