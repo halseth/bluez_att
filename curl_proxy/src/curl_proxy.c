@@ -1,8 +1,5 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <curl/curl.h>
-#include <stdlib.h>
-#include <jansson.h>
+#include "curl_proxy.h"
+#include "json_helper.h"
 
 CURL *curl;
 CURLcode res;
@@ -49,18 +46,6 @@ size_t writefunc(void *ptr, size_t size, size_t nmemb, struct string *s) {
 	return size * nmemb;
 }
 
-void peripheral_did_write_to_header(struct peripheral *peripheral, char* val) {
-	peripheral->http_header;
-}
-
-void peripheral_did_write_to_uri(struct peripheral *peripheral, char* val) {
-	peripheral->server_uri = val;
-}
-
-void peripheral_did_write_to_body(struct peripheral *peripheral, char* val) {
-	peripheral->http_body = val;
-}
-
 void get_from_server(struct peripheral *peripheral) {
 	struct string resp_string;
 	init_string(&resp_string);
@@ -78,28 +63,12 @@ void get_from_server(struct peripheral *peripheral) {
 	printf("performing\n");
 	res = curl_easy_perform(curl);
 
-	printf("Respons:\n%s", resp_string.ptr);
+	printf("Respons:\n%s\n", resp_string.ptr);
 	free(resp_string.ptr);
 
 	if (res != CURLE_OK) {
 		printf("ERROR\n");
 	}
-}
-
-void peripheral_did_write_to_controlpoint(struct peripheral *peripheral,
-		char* val) {
-	peripheral->control_point = val;
-	get_from_server(peripheral);
-}
-
-char* create_json_string(char* id, char* value) {
-	json_t* json;
-	json = json_pack("{sss[{ssss}]}", "version", "1.0.0", "datastreams", "id",
-			id, "current_value", value);
-//	json = json_pack("{ssss}", "id", id, "value", value);
-	char* msg_json;
-	msg_json = json_dumps(json, JSON_INDENT(4));
-	return msg_json;
 }
 
 void put_to_server(struct peripheral* peri) {
@@ -110,6 +79,41 @@ void put_to_server(struct peripheral* peri) {
 	header = curl_slist_append(header, peri->http_header);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
 	res = curl_easy_perform(curl);
+}
+
+request_t server_req(request_t req)
+{
+	struct string resp_string;
+	init_string(&resp_string);
+
+	// TODO make header parser
+	struct curl_slist *header = NULL;
+	header = curl_slist_append(header, req.http_header);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
+
+	curl_easy_setopt(curl, CURLOPT_URL, req.uri);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resp_string);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, req.http_body);
+
+	switch (req.controlpoint)
+	{
+	case GET:
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
+		break;
+	case PUT:
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+		break;
+	default:
+		break;
+	}
+
+	printf("Now performing the %s request\n", req.controlpoint == GET ? "GET" : "PUT");
+	res = curl_easy_perform(curl);
+	long status_code;
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code);
+
+	return req;
 }
 
 int main(void) {
