@@ -38,19 +38,24 @@ size_t writefunc(void *ptr, size_t size, size_t nmemb, struct string *s)
 	return size * nmemb;
 }
 
-struct callback_argument
+typedef struct
 {
-	request_t* request;
-	void (*callback)(request_t*);
-};
+	const request_t* request;
+	response_t* response;
+	void (*callback)(response_t*);
+} thread_argument;
 
 
-static void* server_req(struct callback_argument *arg)
+static void* server_req(void *t)
 {
-	request_t *req = arg->request;
+	thread_argument *arg = (thread_argument*) t;
+	const request_t *req = arg->request;
+	response_t *resp = arg->response;
+
 	CURL *curl;
 	CURLcode res;
 	curl = curl_easy_init();
+
 	if (curl)
 	{ // TODO: Add error checking/return value
 		struct string resp_body_string, resp_header_string;
@@ -90,42 +95,51 @@ static void* server_req(struct callback_argument *arg)
 			printf("ERROR\n");
 		}
 
-		/* Populate the struct to be returned with response data */
-		free(req->http_body);
-		req->http_body = resp_body_string.ptr;
-		req->http_header = resp_header_string.ptr;
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &(req->http_status_code));
+		/* Malloc and populate the struct to be returned with response data */
+		if(resp == NULL)
+		{
+			resp = malloc(sizeof(response_t));
+			resp->http_body = resp_body_string.ptr;
+			resp->http_header = resp_header_string.ptr;
+			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &(resp->http_status_code));
+		}
+		else
+		{
+			printf("Error, respons struct not NULL\n");
+		}
+
 		curl_slist_free_all(header);
+	} else {
+		printf("ERROR initializing curl handle.\n");
 	}
 
 	curl_easy_cleanup(curl);
 
-	printf("Returned:\n");
-	//print_request(req);
-	arg->callback(req);
-	// TODO Remember to remove this when the other module is ready!
-	free(req->http_body);
-	free(req->http_header);
-	free(arg);
+	arg->callback(resp);
 	printf("Callback over\n");
+	free(arg);
+
+	// TODO: Remove this
+	free(req->http_body);
 	return NULL;
 }
 
 
-pthread_t add_server_request(request_t *req, void (*callback)(request_t*))
+pthread_t add_server_request(const request_t *req, void (*callback)(response_t *))
 {
-	struct callback_argument *arg = malloc(sizeof(struct callback_argument));
+	thread_argument *arg = malloc(sizeof(thread_argument));
 	arg->request = req;
 	arg->callback = callback;
+	arg->response = NULL;
 	pthread_t thread_id;
 	int error = pthread_create(&thread_id, NULL, server_req, arg);
 	if(0 != error)
 	{
-		printf("Couldn't run thread with id %u, errno %d\n", thread_id, error);
+		printf("Couldn't run thread with id %lu, errno %d\n", (unsigned long) thread_id, error);
 	}
 	else
 	{
-		printf("Thread with id %u started\n", thread_id);
+		printf("Thread with id %lu started\n", (unsigned long) thread_id);
 	}
 
 	return thread_id;
@@ -150,6 +164,12 @@ void free_request(request_t *req)
 	//free(req->http_header);
 	//free(req->uri);
 }
+void free_response(response_t *resp)
+{
+	free(resp->http_body);
+	free(resp->http_header);
+	free(resp);
+}
 
 void print_request(request_t *req)
 {
@@ -160,21 +180,28 @@ void print_request(request_t *req)
 	free(body);
 	printf("Control point:\n%s\n", req->controlpoint);
 }
+void print_response(response_t *resp)
+{
+	printf("HTTP header:\n%s\n", resp->http_header);
+	char* body = beautify_json_string(resp->http_body);
+	printf("HTTP body:\n%s\n", body);
+	free(body);
+}
 
 /**
  * DUMMY function
  */
 
-void callback_func(request_t *req)
+void callback_func(response_t *resp)
 {
 	printf("Request returned with: \n");
-	print_request(req);
+	print_response(resp);
+	free_response(resp);
 }
 
 int main(void)
 {
 	pthread_t t1, t2;
-
 	request_t get_req;
 	init_request(&get_req);
 	get_req.uri = xively_feed_uri;
@@ -185,18 +212,16 @@ int main(void)
 	print_request(&get_req);
 	t1 = add_server_request(&get_req, callback_func);
 
-
 	request_t put_req;
 	init_request(&put_req);
 
 	put_req.uri = xively_feed_uri;
 	put_req.http_header = xively_feed_header;
 	put_req.controlpoint = "PUT";
-	put_req.http_body = create_json_string("1211", "211");
+	put_req.http_body = create_json_string("1211", "111");
 
 	printf("Now issuing this PUT request:\n");
 	print_request(&put_req);
-	t2 = 0;
 	t2 = add_server_request(&put_req, callback_func);
 
 	if(pthread_join(t1, NULL) || pthread_join(t2, NULL)) {
