@@ -7,7 +7,7 @@
 /*
  * Initialize the module by making the worker threadpool
  */
-void initialize(int num_threads);
+void initialize(int num_threads, long connection_timeout_ms, long transfer_timout_ms);
 
 /*
  * Will destroy all work assigned to this module.

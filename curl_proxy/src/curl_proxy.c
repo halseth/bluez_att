@@ -2,10 +2,10 @@
 #include "json_helper.h"
 #include "thpool.h"
 
-/**
- * The threadpool
- */
+// Global variables
 thpool_t* threadpool = NULL;
+long CONN_TIMEOUT_MS;
+long TRANSFER_TIMEOUT_MS;
 
 static char* xively_feed_uri = "https://api.xively.com/v2/feeds/2006458513.json";
 static char* xively_feed_header =
@@ -76,6 +76,8 @@ static void* server_req(void *t)
 
 		/* Set the URI of the server the request is being sent to */
 		curl_easy_setopt(curl, CURLOPT_URL, req->uri);
+		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, CONN_TIMEOUT_MS);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, TRANSFER_TIMEOUT_MS);
 
 		/* Sets where the response body and header is stored */
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
@@ -97,7 +99,7 @@ static void* server_req(void *t)
 		printf("Now performing %s request\n", req->controlpoint);
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK) {
-			printf("ERROR\n");
+			printf("ERROR: %s\n", curl_easy_strerror(res));
 		}
 
 		/* Malloc and populate the struct to be returned with response data */
@@ -194,12 +196,14 @@ void print_response(response_t *resp)
 void callback_func(response_t *resp)
 {
 	printf("Request returned with: \n");
-//	print_response(resp);
+	print_response(resp);
 }
 
 
-void initialize(int num_threads)
+void initialize(int num_threads, long connection_timeout_ms, long transfer_timout_ms)
 {
+	CONN_TIMEOUT_MS = connection_timeout_ms;
+	TRANSFER_TIMEOUT_MS = transfer_timout_ms;
 	threadpool=thpool_init(num_threads);
 }
 
@@ -210,7 +214,7 @@ void destroy()
 
 int main(void)
 {
-	initialize(10);
+	initialize(10, 5000, 5000);
 	request_t get_req;
 	init_request(&get_req);
 	get_req.uri = xively_feed_uri;
