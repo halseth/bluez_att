@@ -30,11 +30,6 @@ typedef struct
 	 * E.g: "GET", "PUT".
 	 */
 	char* controlpoint;
-
-	/*
-	 * HTTP status. The status returned by the server.
-	 */
-	long http_status_code;
 } request_t;
 
 /*

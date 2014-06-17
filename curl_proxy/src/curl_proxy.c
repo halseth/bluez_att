@@ -117,6 +117,7 @@ static void* server_req(void *t)
 
 	arg->callback(resp);
 	printf("Callback over\n");
+	free_response(resp);
 	free(arg);
 
 	// TODO: Remove this
@@ -154,7 +155,6 @@ void init_request(request_t *req)
 	req->http_body = NULL;
 	req->http_header = NULL;
 	req->uri = NULL;
-	req->http_status_code = 0;
 }
 void free_request(request_t *req)
 {
@@ -196,7 +196,6 @@ void callback_func(response_t *resp)
 {
 	printf("Request returned with: \n");
 	print_response(resp);
-	free_response(resp);
 }
 
 int main(void)
