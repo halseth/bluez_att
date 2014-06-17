@@ -1,6 +1,11 @@
 #include "curl_proxy.h"
 #include "json_helper.h"
-#include <pthread.h>
+#include "thpool.h"
+
+/**
+ * The threadpool
+ */
+thpool_t* threadpool = NULL;
 
 static char* xively_feed_uri = "https://api.xively.com/v2/feeds/2006458513.json";
 static char* xively_feed_header =
@@ -41,7 +46,6 @@ size_t writefunc(void *ptr, size_t size, size_t nmemb, struct string *s)
 typedef struct
 {
 	const request_t* request;
-	response_t* response;
 	void (*callback)(response_t*);
 } thread_argument;
 
@@ -50,7 +54,7 @@ static void* server_req(void *t)
 {
 	thread_argument *arg = (thread_argument*) t;
 	const request_t *req = arg->request;
-	response_t *resp = arg->response;
+	response_t *resp = NULL;
 
 	CURL *curl;
 	CURLcode res;
@@ -80,6 +84,7 @@ static void* server_req(void *t)
 		curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, writefunc);
 		curl_easy_setopt(curl, CURLOPT_HEADERDATA, &resp_header_string);
 
+
 		/* HTTP request body is set in postfields */
 		if (req->http_body != NULL)
 		{
@@ -96,17 +101,12 @@ static void* server_req(void *t)
 		}
 
 		/* Malloc and populate the struct to be returned with response data */
-		if(resp == NULL)
-		{
-			resp = malloc(sizeof(response_t));
-			resp->http_body = resp_body_string.ptr;
-			resp->http_header = resp_header_string.ptr;
-			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &(resp->http_status_code));
-		}
-		else
-		{
-			printf("Error, respons struct not NULL\n");
-		}
+		resp = malloc(sizeof(response_t));
+		resp->http_body = resp_body_string.ptr;
+		resp->http_header = resp_header_string.ptr;
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &(resp->http_status_code));
+
+
 
 		curl_slist_free_all(header);
 	} else {
@@ -126,24 +126,23 @@ static void* server_req(void *t)
 }
 
 
-pthread_t add_server_request(const request_t *req, void (*callback)(response_t *))
+void add_server_request(const request_t *req, void (*callback)(response_t *))
 {
+	if(threadpool == NULL)
+	{
+		printf("ERROR! Module not initialized\n");
+		return;
+	}
 	thread_argument *arg = malloc(sizeof(thread_argument));
 	arg->request = req;
 	arg->callback = callback;
-	arg->response = NULL;
-	pthread_t thread_id;
-	int error = pthread_create(&thread_id, NULL, server_req, arg);
+	int error = thpool_add_work(threadpool, server_req, arg);
 	if(0 != error)
 	{
-		printf("Couldn't run thread with id %lu, errno %d\n", (unsigned long) thread_id, error);
-	}
-	else
-	{
-		printf("Thread with id %lu started\n", (unsigned long) thread_id);
+		printf("Couldn't add work to the thread pool %d\n", error);
+		free(arg);
 	}
 
-	return thread_id;
 }
 
 
@@ -195,12 +194,23 @@ void print_response(response_t *resp)
 void callback_func(response_t *resp)
 {
 	printf("Request returned with: \n");
-	print_response(resp);
+//	print_response(resp);
+}
+
+
+void initialize(int num_threads)
+{
+	threadpool=thpool_init(num_threads);
+}
+
+void destroy()
+{
+	thpool_destroy(threadpool);
 }
 
 int main(void)
 {
-	pthread_t t1, t2;
+	initialize(10);
 	request_t get_req;
 	init_request(&get_req);
 	get_req.uri = xively_feed_uri;
@@ -209,7 +219,7 @@ int main(void)
 
 	printf("Now issuing this GET request:\n");
 	print_request(&get_req);
-	t1 = add_server_request(&get_req, callback_func);
+	add_server_request(&get_req, callback_func);
 
 	request_t put_req;
 	init_request(&put_req);
@@ -221,14 +231,11 @@ int main(void)
 
 	printf("Now issuing this PUT request:\n");
 	print_request(&put_req);
-	t2 = add_server_request(&put_req, callback_func);
+	add_server_request(&put_req, callback_func);
 
-	if(pthread_join(t1, NULL) || pthread_join(t2, NULL)) {
 
-		fprintf(stderr, "Error joining thread\n");
-		return 2;
-
-	}
+	sleep(3);
+	destroy();
 
 	printf("Main exit\n");
 	return 0;

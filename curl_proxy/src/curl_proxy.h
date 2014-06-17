@@ -4,6 +4,16 @@
 #include <curl/curl.h>
 #include <stdlib.h>
 
+/*
+ * Initialize the module by making the worker threadpool
+ */
+void initialize(int num_threads);
+
+/*
+ * Will destroy all work assigned to this module.
+ */
+void destroy();
+
 typedef struct
 {
 	/*
@@ -62,6 +72,6 @@ typedef struct
 void free_response(response_t *resp);
 
 /*
- * Do a server request (PUT or GET). Response are handled to the callback. NB: Response must be free'd!.
+ * Do a server request (PUT or GET). Response are handled to the callback.
  */
-pthread_t add_server_request(const request_t *req, void (*callback)(response_t *));
+void add_server_request(const request_t *req, void (*callback)(response_t *));
