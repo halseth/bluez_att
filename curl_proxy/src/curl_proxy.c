@@ -7,10 +7,6 @@ thpool_t* threadpool = NULL;
 long CONN_TIMEOUT_MS;
 long TRANSFER_TIMEOUT_MS;
 
-static char* xively_feed_uri = "https://api.xively.com/v2/feeds/2006458513.json";
-static char* xively_feed_header =
-		"X-ApiKey:aalkBaiFALoKopSXAVMv3DRqcMTagC9ooHI5CgdEfZPG5AHO";
-
 struct string
 {
 	char* ptr;
@@ -46,7 +42,7 @@ size_t writefunc(void *ptr, size_t size, size_t nmemb, struct string *s)
 typedef struct
 {
 	const request_t* request;
-	void (*callback)(response_t*);
+	void* (*callback)(response_t*);
 } thread_argument;
 
 
@@ -70,9 +66,13 @@ static void* server_req(void *t)
 		struct curl_slist *header = NULL;
 		if(req->http_header != NULL)
 		{
+			printf("I AM HEADER");
 			header = curl_slist_append(header, req->http_header);
 			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
+		} else {
+			printf("I NOT HEADER");
 		}
+
 
 		/* Set the URI of the server the request is being sent to */
 		curl_easy_setopt(curl, CURLOPT_URL, req->uri);
@@ -96,7 +96,6 @@ static void* server_req(void *t)
 		/* Here the type of request (GET, PUT) is set */
 		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, req->controlpoint);
 
-		printf("Now performing %s request\n", req->controlpoint);
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK) {
 			printf("ERROR: %s\n", curl_easy_strerror(res));
@@ -118,7 +117,6 @@ static void* server_req(void *t)
 	curl_easy_cleanup(curl);
 
 	arg->callback(resp);
-	printf("Callback over\n");
 	free_response(resp);
 	free(arg);
 
@@ -189,16 +187,6 @@ void print_response(response_t *resp)
 	free(body);
 }
 
-/**
- * DUMMY function
- */
-
-void callback_func(response_t *resp)
-{
-	printf("Request returned with: \n");
-	print_response(resp);
-}
-
 
 void initialize(int num_threads, long connection_timeout_ms, long transfer_timout_ms)
 {
@@ -210,37 +198,4 @@ void initialize(int num_threads, long connection_timeout_ms, long transfer_timou
 void destroy()
 {
 	thpool_destroy(threadpool);
-}
-
-int main(void)
-{
-	initialize(10, 5000, 5000);
-	request_t get_req;
-	init_request(&get_req);
-	get_req.uri = xively_feed_uri;
-	get_req.http_header = xively_feed_header;
-	get_req.controlpoint = "GET";
-
-	printf("Now issuing this GET request:\n");
-	print_request(&get_req);
-	add_server_request(&get_req, callback_func);
-
-	request_t put_req;
-	init_request(&put_req);
-
-	put_req.uri = xively_feed_uri;
-	put_req.http_header = xively_feed_header;
-	put_req.controlpoint = "PUT";
-	put_req.http_body = create_json_string("1211", "111");
-
-	printf("Now issuing this PUT request:\n");
-	print_request(&put_req);
-	add_server_request(&put_req, callback_func);
-
-
-	sleep(3);
-	destroy();
-
-	printf("Main exit\n");
-	return 0;
 }

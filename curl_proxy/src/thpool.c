@@ -73,7 +73,7 @@ thpool_t* thpool_init(int threadsN){
 	/* Make threads in pool */
 	int t;
 	for (t=0; t<threadsN; t++){
-		printf("Created thread %d in pool \n", t);
+//		printf("Created thread %d in pool \n", t);
 		pthread_create(&(tp_p->threads[t]), NULL, (void *)thpool_thread_do, (void *)tp_p); /* MALLOCS INSIDE PTHREAD HERE */
 	}
 	
