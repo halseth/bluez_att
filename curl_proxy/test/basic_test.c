@@ -12,10 +12,8 @@
 /**
  * Timeout in seconds
  */
-#define TIMEOUT 2
+#define TIMEOUT 1
 
-static char* xively_feed_uri = "https://api.xively.com/v2/feeds/2006458513.json";
-static char* xively_feed_header = "X-ApiKey:aalkBaiFALoKopSXAVMv3DRqcMTagC9ooHI5CgdEfZPG5AHO";
 static char* MOCKY_BODY = "{ \"hello\": \"world\" }";
 static char* MOCKY_200 = "http://www.mocky.io/v2/53a02fa1a7039ffd173fcbc1";
 static char* MOCKY_404 = "http://www.mocky.io/v2/53a02c75a7039fc6173fcbbf";
@@ -61,13 +59,13 @@ TEST_GROUP(proxy);
 TEST_SETUP(proxy)
 {
 	//initialization steps are executed before each TEST
-	initialize(10, 1000, 1000);
+
 }
 
 TEST_TEAR_DOWN(proxy)
 {
 	//clean up steps are executed after each TEST
-	destroy();
+
 }
 
 TEST(proxy, getTest)
@@ -107,42 +105,41 @@ TEST(proxy, callbackTest)
 	// 200
 	CALLBACK_CALLED = 0;
 	req = init_req(MOCKY_200, "", "GET");
-	printf("SERVER_REQ \n");
 	add_server_request(&req, CALLBACK);
 	sleep(TIMEOUT);
-//	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
+	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
 
-//	CALLBACK_CALLED = 0;
-//	req = init_req(MOCKY_200, "", "PUT");
-//	add_server_request(&req, CALLBACK);
-//	sleep(TIMEOUT);
-//	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
-//
-//	// 301
-//	CALLBACK_CALLED = 0;
-//	req = init_req(MOCKY_301, "", "GET");
-//	add_server_request(&req, TEST_CALLBACK_TESTER);
-//	sleep(TIMEOUT);
-//	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
-//
-//	CALLBACK_CALLED = 0;
-//	req = init_req(MOCKY_301, "", "PUT");
-//	add_server_request(&req, TEST_CALLBACK_TESTER);
-//	sleep(TIMEOUT);
-//	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
-//
-//	// 404
-//	CALLBACK_CALLED = 0;
-//	req = init_req(MOCKY_404, "", "GET");
-//	add_server_request(&req, TEST_CALLBACK_TESTER);
-//	sleep(TIMEOUT);
-//	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
-//
-//	CALLBACK_CALLED = 0;
-//	req = init_req(MOCKY_404, "", "PUT");
-//	add_server_request(&req, TEST_CALLBACK_TESTER);
-//	sleep(TIMEOUT);
-//	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
+	CALLBACK_CALLED = 0;
+	req = init_req(MOCKY_200, "", "PUT");
+	add_server_request(&req, CALLBACK);
+	sleep(TIMEOUT);
+	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
+
+	// 301
+	CALLBACK_CALLED = 0;
+	req = init_req(MOCKY_301, "", "GET");
+	add_server_request(&req, CALLBACK);
+	sleep(TIMEOUT);
+	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
+
+	CALLBACK_CALLED = 0;
+	req = init_req(MOCKY_301, "", "PUT");
+	add_server_request(&req, CALLBACK);
+	sleep(TIMEOUT);
+	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
+
+	// 404
+	CALLBACK_CALLED = 0;
+	req = init_req(MOCKY_404, "", "GET");
+	add_server_request(&req, CALLBACK);
+	sleep(TIMEOUT);
+	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
+
+	CALLBACK_CALLED = 0;
+	req = init_req(MOCKY_404, "", "PUT");
+	add_server_request(&req, CALLBACK);
+	sleep(TIMEOUT);
+	TEST_ASSERT_EQUAL_INT(1, CALLBACK_CALLED);
 
 
 
@@ -155,9 +152,12 @@ TEST(proxy, callbackTest)
 TEST_GROUP_RUNNER(proxy)
 {
 	//Each TEST has a corresponding RUN_TEST_CASE
+	initialize(10, 1000, 1000);
 	RUN_TEST_CASE(proxy, getTest);
 	RUN_TEST_CASE(proxy, putTest);
 	RUN_TEST_CASE(proxy, test404Test);
 	RUN_TEST_CASE(proxy, callbackTest);
+	destroy();
+
 }
 

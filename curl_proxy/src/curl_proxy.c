@@ -66,11 +66,8 @@ static void* server_req(void *t)
 		struct curl_slist *header = NULL;
 		if(req->http_header != NULL)
 		{
-			printf("I AM HEADER");
 			header = curl_slist_append(header, req->http_header);
 			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
-		} else {
-			printf("I NOT HEADER");
 		}
 
 
