@@ -4,8 +4,9 @@
 
 // Global variables
 thpool_t* threadpool = NULL;
-long CONN_TIMEOUT_MS;
 long TRANSFER_TIMEOUT_MS;
+
+void free_response(response_t *resp);
 
 struct string
 {
@@ -73,7 +74,6 @@ static void* server_req(void *t)
 
 		/* Set the URI of the server the request is being sent to */
 		curl_easy_setopt(curl, CURLOPT_URL, req->uri);
-		curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, CONN_TIMEOUT_MS);
 		curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, TRANSFER_TIMEOUT_MS);
 
 		/* Sets where the response body and header is stored */
@@ -116,14 +116,11 @@ static void* server_req(void *t)
 	arg->callback(resp);
 	free_response(resp);
 	free(arg);
-
-	// TODO: Remove this
-	free(req->http_body);
 	return NULL;
 }
 
 
-void add_server_request(const request_t *req, void (*callback)(response_t *))
+void add_server_request(const request_t *req, void (*callback)(const response_t *, request_t *))
 {
 	if(threadpool == NULL)
 	{
@@ -146,20 +143,13 @@ void add_server_request(const request_t *req, void (*callback)(response_t *))
 
 void init_request(request_t *req)
 {
-	// TODO: Memory management
 	req->controlpoint = NULL;
 	req->http_body = NULL;
 	req->http_header = NULL;
 	req->uri = NULL;
 }
-void free_request(request_t *req)
-{
-	//TODO: This does not work, because strings in req is not always dynamic
-	//free(req->controlpoint);
-	//free(req->http_body);
-	//free(req->http_header);
-	//free(req->uri);
-}
+
+
 void free_response(response_t *resp)
 {
 	free(resp->http_body);
@@ -185,10 +175,9 @@ void print_response(response_t *resp)
 }
 
 
-void initialize(int num_threads, long connection_timeout_ms, long transfer_timout_ms)
+void initialize(int num_threads, long timeout_ms)
 {
-	CONN_TIMEOUT_MS = connection_timeout_ms;
-	TRANSFER_TIMEOUT_MS = transfer_timout_ms;
+	TRANSFER_TIMEOUT_MS = timeout_ms;
 	threadpool=thpool_init(num_threads);
 }
 

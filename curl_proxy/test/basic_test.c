@@ -6,7 +6,7 @@
  */
 
 //test harness include
-#include "unity/unity_fixture.h";
+#include "unity/unity_fixture.h"
 #include "../src/curl_proxy.h"
 
 /**
@@ -152,7 +152,7 @@ TEST(proxy, callbackTest)
 TEST_GROUP_RUNNER(proxy)
 {
 	//Each TEST has a corresponding RUN_TEST_CASE
-	initialize(10, 1000, 1000);
+	initialize(10, 1000);
 	RUN_TEST_CASE(proxy, getTest);
 	RUN_TEST_CASE(proxy, putTest);
 	RUN_TEST_CASE(proxy, test404Test);

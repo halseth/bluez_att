@@ -6,8 +6,14 @@
 
 /*
  * Initialize the module by making the worker threadpool
+ *
+ * num_threads: Number of threads in the pool.
+ *
+ * connection_timeout: How long the proxy will hold on to a idle connection.
+ *
+ *
  */
-void initialize(int num_threads, long connection_timeout_ms, long transfer_timout_ms);
+void initialize(int num_threads, long timout_ms);
 
 /*
  * Will destroy all work assigned to this module.
@@ -43,9 +49,12 @@ typedef struct
 } request_t;
 
 /*
- * Initialize the request struct
+ * Initialize the request struct with every field set to NULL
+ *
+ * This is for the crul_proxy to actually see that fields are empty.
+ *
  */
-void init_request(request_t *req);
+void init_request(request_t * req);
 
 typedef struct
 {
@@ -69,9 +78,12 @@ typedef struct
 	long http_status_code;
 } response_t;
 
-void free_response(response_t *resp);
 
 /*
- * Do a server request (PUT or GET). Response are handled to the callback.
+ * Do a server request (PUT or GET) corresponding to the request argument.
+ * The response_t will be deallocted after the callback returns.
+ *
+ * Memory management of the request is handled by the caller.
+ *
  */
-void add_server_request(const request_t *req, void (*callback)(response_t *));
+void add_server_request(const request_t *req, void (*callback)(const response_t *, request_t *));
