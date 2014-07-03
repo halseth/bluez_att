@@ -1,5 +1,5 @@
 TARGET = proxy_server
-LIBS = -lcurl -ljansson -lpthread -lbluetooth
+LIBS = -lcurl -ljansson -lpthread -lbluetooth -lm
 CC = gcc
 CFLAGS = 
 
