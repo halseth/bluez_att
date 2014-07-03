@@ -17,7 +17,7 @@ char* beautify_json_string(char* str)
 		return NULL;
 	}
 	json_error_t error;
-	json_t* json = json_loads(str, NULL, &error);
+	json_t* json = json_loads(str, (size_t) NULL, &error);
 	if(!json)
 	{
 		printf("Error loading JSON\n");

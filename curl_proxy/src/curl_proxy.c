@@ -129,7 +129,7 @@ void add_server_request(const request_t *req, void (*callback)(const response_t 
 	}
 	thread_argument *arg = malloc(sizeof(thread_argument));
 	arg->request = req;
-	arg->callback = callback;
+	arg->callback = (void *) callback;
 	int error = thpool_add_work(threadpool, server_req, arg);
 	if(0 != error)
 	{
