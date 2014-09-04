@@ -47,17 +47,18 @@ const uint8_t charDiscoveryResponse1[] =
 {
   0x09, // Read By Type Response Op Code.
   0x07, // Size of each Handle Value Pair.
-  0x11, 0x00, 0x02, 0x12, 0x00, 0xBB, 0xAA, // URI Characteristic
-  0x13, 0x00, 0x02, 0x14, 0x00, 0xBC, 0xAA, // Header Characteristic
-  0x15, 0x00, 0x02, 0x16, 0x00, 0xBD, 0xAA, // Entity Body Characteristic
+  0x11, 0x00, 0x02, 0x12, 0x00, 0xBA, 0xAA, // URI Characteristic
+  0x13, 0x00, 0x02, 0x14, 0x00, 0xBB, 0xAA, // Header Characteristic
+  0x15, 0x00, 0x02, 0x16, 0x00, 0xBC, 0xAA, // Entity Body Characteristic
 };
 
 const uint8_t charDiscoveryResponse2[] =
 {
   0x09, // Read By Type Response Op Code.
   0x07, // Size of each Handle Value Pair.
-  0x17, 0x00, 0x04, 0x18, 0x00, 0xBF, 0xAA, // Control Point Characteristic
-  0x19, 0x00, 0x10, 0x1A, 0x00, 0xBE, 0xAA, // Header Characteristic
+  0x17, 0x00, 0x04, 0x18, 0x00, 0xBD, 0xAA, // Control Point Characteristic
+  0x19, 0x00, 0x10, 0x1A, 0x00, 0xBE, 0xAA, // Status Characteristic
+  0x1C, 0x00, 0x02, 0x1D, 0x00, 0xBF, 0xAA, // Security Characteristic
 };
 
 
@@ -65,9 +66,10 @@ const uint8_t charDiscoveryResponse3[]=
 {
   0x01, // Error Response
   0x08,
-  0x1B, 0x00,
+  0x1D, 0x00,
   0x0A 
 };
+
 
 const uint8_t descDiscoveryResponse[]=
 {
@@ -271,7 +273,7 @@ void * l2cap_thread_start(void * arg)
              printf ("Failed to send Char Discovery Response 1\n");
            }
          }
-         else if(l2capSockBuf[1] == 0x1B)
+         else if(l2capSockBuf[1] == 0x1D)
          {
            len = write(l2capSock,charDiscoveryResponse3, sizeof(charDiscoveryResponse3));
            if(len != sizeof(charDiscoveryResponse3))
@@ -298,6 +300,36 @@ void * l2cap_thread_start(void * arg)
       }
       else if (l2capSockBuf[0] == 0x12)
       {
+         unpack_16_bit_int(&l2capSockBuf[1],&handle);
+         if(handle == 0x001A)
+         {
+            printf ("HTTP Request Received\n");
+            printf ("URI: %s\n", m_uri);
+            printf ("Header: %s\n", m_header);
+            printf ("Body: %s\n", m_body);
+            init_request(&m_request);
+            m_request.uri = m_uri;
+            m_request.http_header = m_header;
+            if(strlen(m_body))
+            {
+              m_request.http_body = m_body;
+            }
+            if (l2capSockBuf[3] == 1)
+            {
+              m_request.controlpoint = "GET";
+            }
+            if (l2capSockBuf[3] == 4)
+            {
+              m_request.controlpoint = "PUT";
+            }
+            add_server_request(&m_request, curl_http_response_cb);
+            len = write(l2capSock,writeResponse, sizeof(writeResponse));
+           if(len != sizeof(writeResponse))
+           {
+             printf ("Failed to send Write Response\n");
+           }
+        }
+
         len = write(l2capSock,writeResponse, sizeof(writeResponse));
         if(len != sizeof(writeResponse))
         {
@@ -339,33 +371,6 @@ void * l2cap_thread_start(void * arg)
         {
           printf ("Failed to send Write Response\n");
         }
-      }
-      else if (l2capSockBuf[0] == 0x52)
-      {
-         unpack_16_bit_int(&l2capSockBuf[1],&handle);
-         if(handle == 0x0018)
-         {
-            printf ("HTTP Request Received\n");
-            printf ("URI: %s\n", m_uri);
-            printf ("Header: %s\n", m_header);
-            printf ("Body: %s\n", m_body);
-            init_request(&m_request);
-            m_request.uri = m_uri;
-            m_request.http_header = m_header;
-            if(strlen(m_body))
-            {
-              m_request.http_body = m_body;
-            }
-            if (l2capSockBuf[3] == 1)
-            {
-              m_request.controlpoint = "GET";
-            } 
-            if (l2capSockBuf[3] == 4)
-            {
-              m_request.controlpoint = "PUT";
-            } 
-            add_server_request(&m_request, curl_http_response_cb);
-         }
       }
     }
   }

@@ -25,12 +25,14 @@ typedef struct
 static hci_ble_bd_addr_t m_device_list[] =
 {
   {
-    //{0xEC, 0x03, 0x0E, 0x28, 0x61, 0xFD},
-    {0xFD, 0x61, 0x28, 0x0E, 0x03, 0xEC},
+    {0xEC, 0x03, 0x0E, 0x28, 0x61, 0xFD},
+    //{0xFD, 0x61, 0x28, 0x0E, 0x03, 0xEC},
     LE_RANDOM_ADDRESS
   }
 };
 
+
+static char * peer_addr = "EC:03:0E:28:61:FD";
 
 static uint8_t m_hci_reset_cmd[HCI_RESET_CMD_LEN] = {HCI_COMMAND_PKT, 0x03, 0x0C, 0x00};
 static pthread_t m_l2cap_thread;
@@ -38,8 +40,8 @@ static pthread_t m_l2cap_thread;
 #if 1
 void * l2cap_thread_start (void * arg);
 #else
-void * l2cap_thread (void * arg)
-{
+	void * l2cap_thread (void * arg)
+	{
    printf ("You did it!\n");
 }
 #endif
@@ -165,7 +167,7 @@ int main(int argc, const char* argv[])
       }
       else
       {
-#if 1
+#if 0
         err= hci_le_clear_white_list(hciSocket, 1000);
 
         err = hci_le_add_white_list(hciSocket, &m_device_list[0].addr, m_device_list[0].type, 1000);
@@ -222,10 +224,12 @@ int main(int argc, const char* argv[])
       }
 
       leAdvertisingInfo = (le_advertising_info *)(leMetaEvent->data + 1);
-      ba2str(&leAdvertisingInfo->bdaddr, btAddress);
+	      ba2str(&leAdvertisingInfo->bdaddr, btAddress);
 
       printf("event %s,%s,\n", btAddress, (leAdvertisingInfo->bdaddr_type == LE_PUBLIC_ADDRESS) ? "public" : "random");
       hci_le_set_scan_enable(hciSocket, 0x00, 1, 1000);
+      if (0 == memcmp(peer_addr,btAddress, strlen(peer_addr)))
+      {
       err = hci_le_create_conn(hciSocket,
                                htobs(0x0010),
                                htobs(0x0010),
@@ -254,6 +258,7 @@ int main(int argc, const char* argv[])
       else
       {
         break;
+      }
       }
     }
     else
