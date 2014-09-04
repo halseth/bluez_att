@@ -61,7 +61,7 @@ static uint8_t m_body[CHAR_VAL_BUFFER_SIZE];
 --------------------------------------------------------------------------------------------------*/
 
 
-#define URI_CHAR_VAL_HANDLE               0x0013
+#define URI_CHAR_VAL_HANDLE               0x0012
 #define HEADER_CHAR_VAL_HANDLE            0x0015
 #define ENTITY_BODY_CHAR_VAL_HANDLE       0x0018
 #define STATUS_CHAR_VAL_HANDLE            0x001B
@@ -83,7 +83,7 @@ static uint8_t m_body[CHAR_VAL_BUFFER_SIZE];
 #define ATT_READ_BLOB_REQUEST             0x0C
 #define ATT_READ_BLOB_RESPONSE            0x0D
 #define ATT_READ_MULTIPLE_REQUEST         0x0E
-#define ATT_READ_MULTIPLE_REQUEST         0x0F
+#define ATT_READ_MULTIPLE_RESPONSE        0x0F
 #define ATT_READ_BY_GROUP_REQUEST         0x10
 #define ATT_READ_BY_GROUP_RESPONSE        0x11
 #define ATT_WRITE_REQUEST                 0x12
@@ -102,7 +102,7 @@ static uint8_t m_body[CHAR_VAL_BUFFER_SIZE];
 const uint8_t serviceDiscoveryResponse[] =
 {
    0x07, // Find By Type Response Op Code.
-   0x10, 0x00, 0x1B, 0x00, // Handle 0x0010-0x001B Has HPS.
+   0x10, 0x00, 0x1F, 0x00, // Handle 0x0010-0x001F Has HPS.
 };
 
 const uint8_t charDiscoveryResponse1[] =
@@ -119,8 +119,8 @@ const uint8_t charDiscoveryResponse2[] =
 {
   0x09, // Read By Type Response Op Code.
   0x07, // Size of each Handle Value Pair.
-  0x1A, 0x00, 0x10, 0x18, 0x00, 0xBD, 0xAA, // Status Characteristic
-  0x1D, 0x00, 0x08, 0x1A, 0x00, 0xBE, 0xAA, // Control Point Characteristic
+  0x1A, 0x00, 0x10, 0x1B, 0x00, 0xBD, 0xAA, // Status Characteristic
+  0x1D, 0x00, 0x08, 0x1E, 0x00, 0xBE, 0xAA, // Control Point Characteristic
   0x1F, 0x00, 0x02, 0x20, 0x00, 0xBF, 0xAA, // Security Characteristic
 };
 
@@ -167,20 +167,20 @@ void l2cap_thread_cleanup(void);
 
 void unpack_16_bit_int(uint8_t * data, uint16_t * value)
 {
-	(*value) = ((uint16_t)(data[1]));
-	(*value) = (((*value) >> 8) | (data[0] & 0xFFFF));
+    (*value) = ((uint16_t)(data[1]));
+    (*value) = (((*value) >> 8) | (data[0] & 0xFFFF));
 }
 
 
 void curl_http_response_cb(const response_t * p_response, request_t * p_request)
 {
-	int len;
+    int len;
 
-	len = write(l2capSock,statusNotification, sizeof(statusNotification));
-	if(len != sizeof(statusNotification))
-	{
-		printf ("Failed to send Status Notification\n");
-	}
+    len = write(l2capSock,statusNotification, sizeof(statusNotification));
+    if(len != sizeof(statusNotification))
+    {
+        printf ("Failed to send Status Notification\n");
+    }
 }
 
 
@@ -289,163 +289,163 @@ void * l2cap_thread_start(void * arg)
                 break;
             }
 
-			i = 0;
-			while(stdinBuf[i] != '\n')
-			{
-				sscanf(&stdinBuf[i], "%02x", &data);
-				l2capSockBuf[i / 2] = data;
-				i += 2;
-			}
+            i = 0;
+            while(stdinBuf[i] != '\n')
+            {
+                sscanf(&stdinBuf[i], "%02x", &data);
+                l2capSockBuf[i / 2] = data;
+                i += 2;
+            }
 
-			len = write(l2capSock, l2capSockBuf, (len - 1) / 2);  
-		}
-		if (FD_ISSET(l2capSock, &rfds))
-		{
-			len = read(l2capSock, l2capSockBuf, sizeof(l2capSockBuf));
+            len = write(l2capSock, l2capSockBuf, (len - 1) / 2);  
+        }
+        if (FD_ISSET(l2capSock, &rfds))
+        {
+            len = read(l2capSock, l2capSockBuf, sizeof(l2capSockBuf));
 
-			if (len <= 0)
-			{
-				break;
-			}
-			dataLen = len;
+            if (len <= 0)
+            {
+                break;
+            }
+            dataLen = len;
 
-			printf("data ");
-			for(i = 0; i < len; i++)
-			{
-				printf("%02x", ((int)l2capSockBuf[i]) & 0xff);
-			}
-			printf("\n");
-			att_opcode = l2capSockBuf[0];
-			switch (att_opcode)
-			{
-				case ATT_READ_REQUEST:
-				{
-					len = write(l2capSock,descDiscoveryResponse, sizeof(descDiscoveryResponse));
-					if(len != sizeof(descDiscoveryResponse))
-					{
-						printf ("Failed to send Descriptor Discovery Response\n");
-					}
-					break;
-				}
-				case ATT_FIND_BY_TYPE_VALUE_REQUEST:
-				{
-					len = write(l2capSock,serviceDiscoveryResponse, sizeof(serviceDiscoveryResponse));
-					if(len != sizeof(serviceDiscoveryResponse))
-					{
-						printf ("Failed to send Service Discovery Response\n");
-					}
-					break;
-				}
-				case ATT_READ_BY_TYPE_REQUEST:
-				{
-					unpack_16_bit_int(&l2capSockBuf[1],&handle);
-					if(handle == 0x0010)
-					{
-						len = write(l2capSock,charDiscoveryResponse1, sizeof(charDiscoveryResponse1));
-						if(len != sizeof(charDiscoveryResponse1))
-						{
-						 printf ("Failed to send Char Discovery Response 1\n");
-						}
-					}
-					else if(handle == 0x0020)
-					{
-						len = write(l2capSock,charDiscoveryResponse3, sizeof(charDiscoveryResponse3));
-						if(len != sizeof(charDiscoveryResponse3))
-						{
-						 printf ("Failed to send Char Discovery Response 3\n");
-						}
-					}
-					else
-					{
-						len = write(l2capSock,charDiscoveryResponse2, sizeof(charDiscoveryResponse2));
-						if(len != sizeof(charDiscoveryResponse2))
-						{
-						 printf ("Failed to send Char Discovery Response 2\n");
-						}
-					}
-					break;
-				}
-				case ATT_WRITE_REQUEST:
-				{
-					unpack_16_bit_int(&l2capSockBuf[1],&handle);
-					if(handle == CNTRL_PNT_CHAR_VAL_HANDLE)
-					{
-						printf ("HTTP Request Received\n");
-						printf ("URI: %s\n", m_uri);
-						printf ("Header: %s\n", m_header);
-						printf ("Body: %s\n", m_body);
-						init_request(&m_request);
-						m_request.uri = m_uri;
-						m_request.http_header = m_header;
-						if(strlen(m_body))
-						{
-							m_request.http_body = m_body;
-						}
-						if (l2capSockBuf[3] == 1)
-						{
-							m_request.controlpoint = "GET";
-						}
-						if (l2capSockBuf[3] == 4)
-						{
-							m_request.controlpoint = "PUT";
-						}
-						add_server_request(&m_request, curl_http_response_cb);
-					}
-					len = write(l2capSock,writeResponse, sizeof(writeResponse));
-					if(len != sizeof(writeResponse))
-					{
-						printf ("Failed to send Write Response\n");
-					}
-					break;
-				}
-				case ATT_PREPARE_WRITE_REQUEST:
-				{
-					unpack_16_bit_int(&l2capSockBuf[1],&handle);
-					unpack_16_bit_int(&l2capSockBuf[3],&offset);
+            printf("data ");
+            for(i = 0; i < len; i++)
+            {
+                printf("%02x", ((int)l2capSockBuf[i]) & 0xff);
+            }
+            printf("\n");
+            att_opcode = l2capSockBuf[0];
+            switch (att_opcode)
+            {
+                case ATT_FIND_INFO_REQUEST:
+                {
+                    len = write(l2capSock,descDiscoveryResponse, sizeof(descDiscoveryResponse));
+                    if(len != sizeof(descDiscoveryResponse))
+                    {
+                        printf ("Failed to send Descriptor Discovery Response\n");
+                    }
+                    break;
+                }
+                case ATT_FIND_BY_TYPE_VALUE_REQUEST:
+                {
+                    len = write(l2capSock,serviceDiscoveryResponse, sizeof(serviceDiscoveryResponse));
+                    if(len != sizeof(serviceDiscoveryResponse))
+                    {
+                        printf ("Failed to send Service Discovery Response\n");
+                    }
+                    break;
+                }
+                case ATT_READ_BY_TYPE_REQUEST:
+                {
+                    unpack_16_bit_int(&l2capSockBuf[1],&handle);
+                    if(handle == 0x0010)
+                    {
+                        len = write(l2capSock,charDiscoveryResponse1, sizeof(charDiscoveryResponse1));
+                        if(len != sizeof(charDiscoveryResponse1))
+                        {
+                         printf ("Failed to send Char Discovery Response 1\n");
+                        }
+                    }
+                    else if(handle == 0x0020)
+                    {
+                        len = write(l2capSock,charDiscoveryResponse3, sizeof(charDiscoveryResponse3));
+                        if(len != sizeof(charDiscoveryResponse3))
+                        {
+                         printf ("Failed to send Char Discovery Response 3\n");
+                        }
+                    }
+                    else
+                    {
+                        len = write(l2capSock,charDiscoveryResponse2, sizeof(charDiscoveryResponse2));
+                        if(len != sizeof(charDiscoveryResponse2))
+                        {
+                         printf ("Failed to send Char Discovery Response 2\n");
+                        }
+                    }
+                    break;
+                }
+                case ATT_WRITE_REQUEST:
+                {
+                    unpack_16_bit_int(&l2capSockBuf[1],&handle);
+                    if(handle == CNTRL_PNT_CHAR_VAL_HANDLE)
+                    {
+                        printf ("HTTP Request Received\n");
+                        printf ("URI: %s\n", m_uri);
+                        printf ("Header: %s\n", m_header);
+                        printf ("Body: %s\n", m_body);
+                        init_request(&m_request);
+                        m_request.uri = m_uri;
+                        m_request.http_header = m_header;
+                        if(strlen(m_body))
+                        {
+                            m_request.http_body = m_body;
+                        }
+                        if (l2capSockBuf[3] == 1)
+                        {
+                            m_request.controlpoint = "GET";
+                        }
+                        if (l2capSockBuf[3] == 4)
+                        {
+                            m_request.controlpoint = "PUT";
+                        }
+                        add_server_request(&m_request, curl_http_response_cb);
+                    }
+                    len = write(l2capSock,writeResponse, sizeof(writeResponse));
+                    if(len != sizeof(writeResponse))
+                    {
+                        printf ("Failed to send Write Response\n");
+                    }
+                    break;
+                }
+                case ATT_PREPARE_WRITE_REQUEST:
+                {
+                    unpack_16_bit_int(&l2capSockBuf[1],&handle);
+                    unpack_16_bit_int(&l2capSockBuf[3],&offset);
 
-					printf ("Handle 0x%04X, offset 0x%04X\n", handle, offset);
+                    printf ("Handle 0x%04X, offset 0x%04X\n", handle, offset);
 
-					if (handle == URI_CHAR_VAL_HANDLE)
-					{
-						memcpy(&m_uri[offset], &l2capSockBuf[5], (dataLen-5)); 
-					}
-					else if(handle == HEADERS_CHAR_VAL_HANDLE)
-					{
-						memcpy(&m_header[offset], &l2capSockBuf[5], (dataLen-5)); 
-					}
-					else if(handle == ENTITY_BODY_CHAR_VAL_HANDLE)
-					{
-						memcpy(&m_body[offset], &l2capSockBuf[5], (dataLen-5)); 
-					}
+                    if (handle == URI_CHAR_VAL_HANDLE)
+                    {
+                        memcpy(&m_uri[offset], &l2capSockBuf[5], (dataLen-5)); 
+                    }
+                    else if(handle == HEADER_CHAR_VAL_HANDLE)
+                    {
+                        memcpy(&m_header[offset], &l2capSockBuf[5], (dataLen-5)); 
+                    }
+                    else if(handle == ENTITY_BODY_CHAR_VAL_HANDLE)
+                    {
+                        memcpy(&m_body[offset], &l2capSockBuf[5], (dataLen-5)); 
+                    }
 
-					l2capSockBuf[0] = 0x17;
-					len = write(l2capSock,l2capSockBuf, len);
-					if(len != dataLen)
-					{
-						printf ("Failed to send Prepare Write Response\n");
-					}
-					break;
-				}
-				case ATT_EXECUTE_WRITE_REQUEST:
-				{
-					len = write(l2capSock,executeWriteResponse, sizeof(executeWriteResponse));
-					if(len != sizeof(executeWriteResponse))
-					{
-					  printf ("Failed to send Write Response\n");
-					}
-					break;
-				}
-				default:
-					break;
-			}
-		}
-	}
-	return 0;
+                    l2capSockBuf[0] = 0x17;
+                    len = write(l2capSock,l2capSockBuf, len);
+                    if(len != dataLen)
+                    {
+                        printf ("Failed to send Prepare Write Response\n");
+                    }
+                    break;
+                }
+                case ATT_EXECUTE_WRITE_REQUEST:
+                {
+                    len = write(l2capSock,executeWriteResponse, sizeof(executeWriteResponse));
+                    if(len != sizeof(executeWriteResponse))
+                    {
+                      printf ("Failed to send Write Response\n");
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+    return 0;
 }
 
 
 void l2cap_thread_cleanup(void)
 {
-	close(l2capSock);
-	printf("disconnect\n");
+    close(l2capSock);
+    printf("disconnect\n");
 }
