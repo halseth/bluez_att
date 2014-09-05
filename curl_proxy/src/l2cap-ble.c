@@ -33,10 +33,13 @@ struct l2cap_conninfo
 
 #define CHAR_VAL_BUFFER_SIZE 512
 
-static uint8_t m_uri[CHAR_VAL_BUFFER_SIZE];
-static uint8_t m_header[CHAR_VAL_BUFFER_SIZE];
-static uint8_t m_body[CHAR_VAL_BUFFER_SIZE];
+uint8_t m_uri[CHAR_VAL_BUFFER_SIZE];
+uint8_t m_header[CHAR_VAL_BUFFER_SIZE];
+uint8_t m_body[CHAR_VAL_BUFFER_SIZE];
+uint8_t m_header_response[CHAR_VAL_BUFFER_SIZE];
+uint8_t m_body_response[CHAR_VAL_BUFFER_SIZE];
 
+struct l2cap_conninfo l2capConnInfo;
 /** GATT Server Record View. */
 /*-------------------------------------------------------------------------------------------------+
  | Handle | Attribute Description | UUID   | Value                                                 |
@@ -98,6 +101,7 @@ static uint8_t m_body[CHAR_VAL_BUFFER_SIZE];
 #define ATT_HANDLE_VALUE_CONFIRMATION     0x1E
 #define ATT_SIGNED_WRITE_COMMAND          0xD2
 
+#define ATT_MTU_SIZE                      23
 
 const uint8_t serviceDiscoveryResponse[] =
 {
@@ -160,8 +164,9 @@ uint8_t statusNotification[]=
   
 };
 
-static int l2capSock;
-static request_t m_request;
+int l2capSock;
+request_t m_request;
+uint8_t ReadResponse[ATT_MTU_SIZE];
 
 void l2cap_thread_cleanup(void);
 
@@ -176,6 +181,13 @@ void curl_http_response_cb(const response_t * p_response, request_t * p_request)
 {
     int len;
 
+    memset(m_uri, 0x00, 512);
+    memset(m_header, 0x00, 512);
+    memset(m_body, 0x00, 512);
+    memset(m_header_response, 0x00, 512);
+    memset(m_body_response, 0x00, 512);
+    strcpy(m_header_response, p_response->http_header);
+    strcpy(m_body_response, p_response->http_body);
     len = write(l2capSock,statusNotification, sizeof(statusNotification));
     if(len != sizeof(statusNotification))
     {
@@ -190,11 +202,12 @@ void * l2cap_thread_start(void * arg)
     int hciDeviceId = 0;
     le_advertising_info *leAdvertisingInfo =(le_advertising_info *) (arg);
     struct sockaddr_l2 sockAddr;
-    struct l2cap_conninfo l2capConnInfo;
     socklen_t l2capConnInfoLen;
     int hciHandle;
     int result;
     char att_opcode;
+    int readResponseLen;
+    char *srcBuffer;
   
 
     fd_set rfds;
@@ -209,11 +222,9 @@ void * l2cap_thread_start(void * arg)
     uint16_t handle;
 
     // remove buffering 
-    setbuf(stdin, NULL);
-    setbuf(stdout, NULL);
-    setbuf(stderr, NULL);
-
-    initialize(1, 1000);
+    //setbuf(stdin, NULL);
+    //setbuf(stdout, NULL);
+    ///setbuf(stderr, NULL);
 
     hciDeviceIdOverride = getenv("NOBLE_HCI_DEVICE_ID");
     if (hciDeviceIdOverride != NULL)
@@ -257,7 +268,7 @@ void * l2cap_thread_start(void * arg)
     getsockopt(l2capSock, SOL_L2CAP, L2CAP_CONNINFO, &l2capConnInfo, &l2capConnInfoLen);
     hciHandle = l2capConnInfo.hci_handle;
 
-    printf("connect %s\n", (result == -1) ? strerror(errno) : "success");
+    printf("connect handle %s 0x%04X\n", (result == -1) ? strerror(errno) : "success", hciHandle);
 
     if (result == -1)
     {
@@ -308,13 +319,16 @@ void * l2cap_thread_start(void * arg)
                 break;
             }
             dataLen = len;
+            printf ("l2capConnInfo.hci_handle 0x%04X\n", l2capConnInfo.hci_handle);
 
+#if 0
             printf("data ");
             for(i = 0; i < len; i++)
             {
                 printf("%02x", ((int)l2capSockBuf[i]) & 0xff);
             }
             printf("\n");
+#endif //0
             att_opcode = l2capSockBuf[0];
             switch (att_opcode)
             {
@@ -364,6 +378,65 @@ void * l2cap_thread_start(void * arg)
                         }
                     }
                     break;
+                }
+                case ATT_READ_REQUEST:
+                {
+                     ReadResponse[0] = ATT_READ_RESPONSE;
+                     unpack_16_bit_int(&l2capSockBuf[1],&handle);
+
+                     if (handle == URI_CHAR_VAL_HANDLE)
+                     {
+                          srcBuffer = m_uri;
+                     }
+                     else if(handle == HEADER_CHAR_VAL_HANDLE)
+                     {
+                          srcBuffer = m_header_response;
+                     }
+                     else if(handle == ENTITY_BODY_CHAR_VAL_HANDLE)
+                     {
+                          srcBuffer = m_body_response;
+                     }
+
+                     readResponseLen = strlen(srcBuffer);
+                     readResponseLen = (readResponseLen >= ATT_MTU_SIZE ? (ATT_MTU_SIZE -1) : readResponseLen);
+                     printf ("srcBuffer %s\n", srcBuffer);
+                     memcpy(&ReadResponse[1], srcBuffer, readResponseLen);
+                     len = write(l2capSock,ReadResponse, readResponseLen);
+                     if(len != readResponseLen)
+                     {
+                          printf ("Failed to send Read Response\n");
+                     }
+                     break;
+                }
+                case ATT_READ_BLOB_REQUEST:
+                {
+                     ReadResponse[0] = ATT_READ_BLOB_RESPONSE;
+                     unpack_16_bit_int(&l2capSockBuf[1],&handle);
+                     unpack_16_bit_int(&l2capSockBuf[3],&offset);
+
+                     if (handle == URI_CHAR_VAL_HANDLE)
+                     {
+                          srcBuffer = m_uri;
+                     }
+                     else if(handle == HEADER_CHAR_VAL_HANDLE)
+                     {
+                          srcBuffer = m_header_response;
+                     }
+                     else if(handle == ENTITY_BODY_CHAR_VAL_HANDLE)
+                     {
+                          srcBuffer = m_body_response;
+                     }
+
+                     readResponseLen = strlen(srcBuffer) - offset;
+                     readResponseLen = (readResponseLen >= ATT_MTU_SIZE ? (ATT_MTU_SIZE -1) : readResponseLen);
+                     printf ("Offset %d\n", offset);
+                     memcpy(&ReadResponse[1], srcBuffer+offset, readResponseLen);
+                     len = write(l2capSock,ReadResponse, readResponseLen);
+                     if(len != readResponseLen)
+                     {
+                          printf ("Failed to send Read Response\n");
+                     }
+                     break;
                 }
                 case ATT_WRITE_REQUEST:
                 {

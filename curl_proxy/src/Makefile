@@ -1,7 +1,8 @@
 TARGET = proxy_server
 LIBS = -lcurl -ljansson -lpthread -lbluetooth -lm
 CC = gcc
-CFLAGS = 
+CFLAGS = -DSCANNER
+#CFLAGS=
 
 .PHONY: default all clean
 
